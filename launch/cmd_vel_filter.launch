@@ -1,0 +1,11 @@
+<launch>
+
+    <arg name="sub_topic" default="cmd_vel"/>
+    <arg name="pub_topic" default="carla/ego_vehicle/control/set_target_velocity"/>
+    
+    <node pkg="cmd_vel_filter" type="cmd_vel_filter.py" name="cmd_vel_filter" output="screen">
+        <param name="sub_topic" value="$(arg sub_topic)"/>
+        <param name="pub_topic" value="$(arg pub_topic)"/>
+    </node>
+
+</launch>
