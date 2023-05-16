@@ -6,17 +6,17 @@ from carla_msgs.msg import CarlaEgoVehicleControl
 breaking = False
 
 def callback(msg):
-    global breaking
+    global braking
 
     if (msg.linear.x == 0) and (msg.linear.y == 0) and (msg.linear.z == 0) and (msg.angular.x == 0) and (msg.angular.y == 0) and (msg.angular.z == 0):
-        breaking = True
+        braking = True
         control = CarlaEgoVehicleControl()
         control.throttle = 0.
         control.brake = 1.
         control.steer = 0.
         pub_control.publish(control)
-    elif breaking:
-        breaking = False
+    elif braking:
+        braking = False
         control = CarlaEgoVehicleControl()
         control.brake = 0.
         pub_control.publish(control)
