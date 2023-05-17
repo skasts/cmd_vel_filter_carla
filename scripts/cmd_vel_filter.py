@@ -3,29 +3,25 @@ import rospy
 from geometry_msgs.msg import Twist
 from carla_msgs.msg import CarlaEgoVehicleControl
 
-breaking = False
-
 def callback(msg):
-    global braking
-
-    if (msg.linear.x == 0) and (msg.linear.y == 0) and (msg.linear.z == 0) and (msg.angular.x == 0) and (msg.angular.y == 0) and (msg.angular.z == 0):
-        braking = True
-        control = CarlaEgoVehicleControl()
-        control.throttle = 0.
+    # Invert the velocity and publish
+    msg.angular.x = -msg.angular.x
+    msg.angular.y = -msg.angular.y
+    msg.angular.z = -msg.angular.z # *2?
+    pub.publish(msg)
+    rospy.loginfo("Passing through target velocity")
+    
+    # Brake if target velocity is 0
+    # This prevents drifting when the target velocity is 0
+    control = CarlaEgoVehicleControl()
+    control.throttle = 0.
+    control.steer = 0.
+    if msg == Twist():
         control.brake = 1.
-        control.steer = 0.
-        pub_control.publish(control)
-    elif braking:
-        braking = False
-        control = CarlaEgoVehicleControl()
-        control.brake = 0.
-        pub_control.publish(control)
+        rospy.loginfo("Braking as target velocity is 0")
     else:
-        # Invert the velocity and publish
-        msg.angular.x = -msg.angular.x
-        msg.angular.y = -msg.angular.y
-        msg.angular.z = -msg.angular.z*2
-        pub.publish(msg)
+        control.brake = 0.
+    pub_control.publish(control)
 
 if __name__ == '__main__':
     # Initialize the node with rospy
