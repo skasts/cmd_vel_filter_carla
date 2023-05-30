@@ -2,10 +2,36 @@
 import rospy
 from geometry_msgs.msg import Twist
 from carla_msgs.msg import CarlaEgoVehicleControl
+import threading
 
-# TODO: Add watchdog to brake if no message is received for a certain amount of time
+mutex = threading.Lock()
+last_update_time = rospy.Time(0)
 
-def callback(msg):
+def timer_callback(event):
+    global last_update_time, mutex
+
+    mutex.acquire(blocking=True)
+
+    if rospy.Time.now() - last_update_time > rospy.Duration(1.0):
+        # If the last update time is more than 1 second ago, set the velocity to 0
+        rospy.loginfo("Resetting target velocity to 0")
+        control = CarlaEgoVehicleControl()
+        control.throttle = 0.
+        control.steer = 0.
+        control.brake = 1.
+        pub_control.publish(control)
+    
+    mutex.release()
+
+def cmd_vel_callback(msg):
+    global last_update_time, mutex
+
+    mutex.acquire(blocking=True)
+
+    last_update_time = rospy.Time.now()
+
+    mutex.release()
+
     # Invert the velocity and publish
     msg.angular.x = -msg.angular.x
     msg.angular.y = -msg.angular.y
@@ -40,11 +66,11 @@ if __name__ == '__main__':
     rospy.loginfo("[%s]: Subscribing to /%s", rospy.get_name(), sub_topic)
     rospy.loginfo("[%s]: Publishing to /%s", rospy.get_name(), pub_topic)
     # Create subscriber and publisher
-    sub = rospy.Subscriber(sub_topic, Twist, callback)
+    sub = rospy.Subscriber(sub_topic, Twist, cmd_vel_callback)
     pub = rospy.Publisher(pub_topic, Twist, queue_size=10)
     pub_control = rospy.Publisher("/carla/ego_vehicle/vehicle_control_cmd", CarlaEgoVehicleControl, queue_size=10)
     # Create a watchdog thread
-    watchdog = 
+    rospy.Timer(rospy.Duration(0.5), timer_callback)
 
     # Spin until ctrl + c
     rospy.spin()
