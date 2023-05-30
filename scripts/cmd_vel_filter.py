@@ -7,6 +7,9 @@ import threading
 mutex = threading.Lock()
 last_update_time = rospy.Time(0)
 
+# This function (watchdog) is called every 0.5 seconds and checks whether the last cmd_vel message
+# is more than 1 second ago. If so, it will brake the agent in CARLA. This is to prevent the agent
+# from drifting when the target velocity is 0.
 def timer_callback(event):
     global last_update_time, mutex
 
@@ -14,7 +17,7 @@ def timer_callback(event):
 
     if rospy.Time.now() - last_update_time > rospy.Duration(1.0):
         # If the last update time is more than 1 second ago, set the velocity to 0
-        rospy.loginfo("Resetting target velocity to 0")
+        rospy.loginfo("No new cmd_vel message received for 1 second, braking")
         control = CarlaEgoVehicleControl()
         control.throttle = 0.
         control.steer = 0.
@@ -26,21 +29,22 @@ def timer_callback(event):
 def cmd_vel_callback(msg):
     global last_update_time, mutex
 
+    # Update the last update time
     mutex.acquire(blocking=True)
-
     last_update_time = rospy.Time.now()
-
     mutex.release()
 
-    # Invert the velocity and publish
-    msg.angular.x = -msg.angular.x
-    msg.angular.y = -msg.angular.y
-    msg.angular.z = -msg.angular.z # *2?
+    # Invert the velocity and publish. CARLA is using a left hand coordinate system, while ROS is
+    # using a right hand coordinate system. Also, it seems like rotational velocities do not map 
+    # 1 to 1 to CARLA. Therefore, multiply by a constant.
+    msg.angular.z = -msg.angular.z * 2 
 
-    # If velocity is zero but angular velocity is not, set velocity to 0.1
-    if msg.linear.x == 0. and msg.linear.y == 0. and msg.linear.z == 0. and msg.angular.z != 0.:
-        msg.linear.x = 0.01
-        msg.angular.z = msg.angular.z * 3
+    # If velocity is zero but angular velocity is not, it is probably using the inplace_rotate
+    # planner. Here we experience a bug where the angular velocity is too low, so we multiply it 
+    # by a constant. Not doing this would return in a not moving robot.
+    # NOT USED AS MULTIPLYING ABOVE IS ENOUGH
+    # if msg.linear.x == 0. and msg.linear.y == 0. and msg.linear.z == 0. and msg.angular.z != 0.:
+    #     msg.angular.z = msg.angular.z * 1
 
     pub.publish(msg)
     rospy.loginfo("Passing through target velocity")
@@ -71,6 +75,5 @@ if __name__ == '__main__':
     pub_control = rospy.Publisher("/carla/ego_vehicle/vehicle_control_cmd", CarlaEgoVehicleControl, queue_size=10)
     # Create a watchdog thread
     rospy.Timer(rospy.Duration(0.5), timer_callback)
-
     # Spin until ctrl + c
     rospy.spin()
