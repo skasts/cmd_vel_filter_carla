@@ -3,11 +3,19 @@ import rospy
 from geometry_msgs.msg import Twist
 from carla_msgs.msg import CarlaEgoVehicleControl
 
+# TODO: Add watchdog to brake if no message is received for a certain amount of time
+
 def callback(msg):
     # Invert the velocity and publish
     msg.angular.x = -msg.angular.x
     msg.angular.y = -msg.angular.y
     msg.angular.z = -msg.angular.z # *2?
+
+    # If velocity is zero but angular velocity is not, set velocity to 0.1
+    if msg.linear.x == 0. and msg.linear.y == 0. and msg.linear.z == 0. and msg.angular.z != 0.:
+        msg.linear.x = 0.01
+        msg.angular.z = msg.angular.z * 3
+
     pub.publish(msg)
     rospy.loginfo("Passing through target velocity")
     
@@ -35,5 +43,8 @@ if __name__ == '__main__':
     sub = rospy.Subscriber(sub_topic, Twist, callback)
     pub = rospy.Publisher(pub_topic, Twist, queue_size=10)
     pub_control = rospy.Publisher("/carla/ego_vehicle/vehicle_control_cmd", CarlaEgoVehicleControl, queue_size=10)
+    # Create a watchdog thread
+    watchdog = 
+
     # Spin until ctrl + c
     rospy.spin()
