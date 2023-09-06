@@ -15,9 +15,9 @@ def timer_callback(event):
 
     mutex.acquire(blocking=True)
 
-    if rospy.Time.now() - last_update_time > rospy.Duration(1.0):
+    if rospy.Time.now() - last_update_time > rospy.Duration(0.2):
         # If the last update time is more than 1 second ago, set the velocity to 0
-        rospy.loginfo("No new cmd_vel message received for 1 second, braking")
+        # rospy.loginfo("No new cmd_vel message received for 1 second, braking")
         control = CarlaEgoVehicleControl()
         control.throttle = 0.
         control.steer = 0.
@@ -37,7 +37,7 @@ def cmd_vel_callback(msg):
     # Invert the velocity and publish. CARLA is using a left hand coordinate system, while ROS is
     # using a right hand coordinate system. Also, it seems like rotational velocities do not map 
     # 1 to 1 to CARLA. Therefore, multiply by a constant.
-    msg.angular.z = -msg.angular.z * 2 
+    msg.angular.z = -msg.angular.z * 5
 
     # If velocity is zero but angular velocity is not, it is probably using the inplace_rotate
     # planner. Here we experience a bug where the angular velocity is too low, so we multiply it 
